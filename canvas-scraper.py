@@ -1,5 +1,5 @@
 #!bin/python3
-import argparse
+from dotenv import load_dotenv
 import os
 import re
 
@@ -100,30 +100,34 @@ def get_course_files(course):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Download all content from Canvas")
-    parser.add_argument("url", help="URL to the Canvas website, e.g. https://canvas.utwente.nl")
-    parser.add_argument("token", help="Token generated in the settings page on Canvas")
-    parser.add_argument("output", help="Path to the output folder, e.g. output/")
-    parser.add_argument("courses", help="Comma-separated course IDs or 'all'", nargs="?", const="all")
-    args = parser.parse_args()
+    # Load environment variables from .env file
+    load_dotenv()
 
-    # Handle args
-    output = args.output.rstrip("/") + "/"
+    url = os.getenv("URL")
+    token = os.getenv("TOKEN")
+    output = os.getenv("OUTPUT", "./output/").rstrip("/") + "/"
+    courses_env = os.getenv("COURSES", "all")
 
-    if args.courses is None:
-        args.courses = "all"
-        print("No courses specified. Scraping all courses.")
+    if not url or not token:
+        print("Missing URL or TOKEN in environment variables. Please check your .env file.")
+        exit(1)
 
-    canvas = Canvas(args.url, args.token)
 
-    courses = [] # courses to scrape
+    # Ensure .gitignore in output folder
+    output_gitignore = os.path.join(output, ".gitignore")
+    os.makedirs(output, exist_ok=True)
+    if not os.path.exists(output_gitignore):
+        with open(output_gitignore, "w") as f:
+            f.write("*\n")
+
+    canvas = Canvas(url, token)
 
     # Select courses to scrape, default to all
-    if args.courses != "all":
+    if courses_env != "all":
         courses = []
-        ids = args.courses.split(",")
+        ids = courses_env.split(",")
         for id in ids:
-            courses.append(canvas.get_course( int(id) ))
+            courses.append(canvas.get_course(int(id)))
     else:
         courses = canvas.get_courses()
 
