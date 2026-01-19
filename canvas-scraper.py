@@ -1,3 +1,4 @@
+import html2text
 #!bin/python3
 from dotenv import load_dotenv
 import os
@@ -15,6 +16,24 @@ def extract_files(text):
     text_search = re.findall("/files/(\\d+)", text, re.IGNORECASE)
     groups = set(text_search)
     return groups
+
+
+def write_html_or_md(content, base_path, title):
+    """Write content as .md if enabled, else as .html. Never keep .html if .md is written."""
+    convert = os.getenv("CONVERT_HTML_TO_MD", "true").lower() == "true"
+    safe_title = sanitize_filename(title)
+    if convert:
+        md_path = os.path.join(base_path, safe_title + ".md")
+        try:
+            md_content = html2text.html2text(content)
+            with open(md_path, "w", encoding="utf-8") as f:
+                f.write(md_content)
+        except Exception as e:
+            print(f"Failed to convert {title} to markdown: {e}")
+    else:
+        html_path = os.path.join(base_path, safe_title + ".html")
+        with open(html_path, "w", encoding="utf-8") as f:
+            f.write(content)
 
 def get_course_files(course):
     modules = course.get_modules()
@@ -48,8 +67,7 @@ def get_course_files(course):
                 file.download(path + sanitize_filename(file.filename))
             elif item_type == "Page":
                 page = course.get_page(item.page_url)
-                with open(path + sanitize_filename(item.title) + ".html", "w", encoding="utf-8") as f:
-                    f.write(page.body or "")
+                write_html_or_md(page.body or "", path, item.title)
                 files = extract_files(page.body or "")
                 for file_id in files:
                     if file_id in files_downloaded:
@@ -67,8 +85,7 @@ def get_course_files(course):
                     f.write("URL=" + url)
             elif item_type == "Assignment":
                 assignment = course.get_assignment(item.content_id)
-                with open(path + sanitize_filename(item.title) + ".html", "w", encoding="utf-8") as f:
-                    f.write(assignment.description or "")
+                write_html_or_md(assignment.description or "", path, item.title)
                 files = extract_files(assignment.description or "")
                 for file_id in files:
                     if file_id in files_downloaded:

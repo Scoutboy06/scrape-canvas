@@ -1,4 +1,5 @@
+html2text
+python-dotenv
 CanvasScraper
 canvasapi
 pathvalidate
-python-dotenv
